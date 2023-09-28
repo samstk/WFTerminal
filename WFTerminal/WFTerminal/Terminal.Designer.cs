@@ -47,6 +47,10 @@
             this.Name = "Terminal";
             this.Size = new System.Drawing.Size(935, 700);
             this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.Terminal_KeyDown);
+            this.MouseDown += new System.Windows.Forms.MouseEventHandler(this.Terminal_MouseDown);
+            this.MouseMove += new System.Windows.Forms.MouseEventHandler(this.Terminal_MouseMove);
+            this.MouseUp += new System.Windows.Forms.MouseEventHandler(this.Terminal_MouseUp);
+            this.PreviewKeyDown += new System.Windows.Forms.PreviewKeyDownEventHandler(this.Terminal_PreviewKeyDown);
             this.ResumeLayout(false);
 
         }

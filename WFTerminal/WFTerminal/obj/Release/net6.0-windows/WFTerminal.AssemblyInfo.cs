@@ -12,7 +12,7 @@ using System;
 using System.Reflection;
 
 [assembly: System.Reflection.AssemblyCompanyAttribute("samstk")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyCopyrightAttribute("Samuel Sticklen 2023")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("A simple terminal-like control")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]

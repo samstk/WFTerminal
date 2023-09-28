@@ -89,7 +89,7 @@ namespace WFTerminal
                 {
                     string line = "";
                     int readPos = _UserInputStartIndex;
-                    while(readPos != _BufferCurrentPosition)
+                    while(true)
                     {
                         char c = _Buffer[readPos++];
 
@@ -238,6 +238,12 @@ namespace WFTerminal
         /// </summary>
         [Description("Gets or sets the default color for terminal input"), Category("Appearance")]
         public Color InputColor { get; set; } = Color.LightGray;
+
+        /// <summary>
+        /// Gets or sets the default color for terminal highlighting during selection
+        /// </summary>
+        [Description("Gets or sets the default color for terminal highlighting during selection"), Category("Appearance")]
+        public Color HighlightColor { get; set; } = Color.FromArgb(44,44,44);
         #endregion
 
         /// <summary>
@@ -327,6 +333,51 @@ namespace WFTerminal
         }
 
         /// <summary>
+        /// Deletes the last character and shifts all characters backwards
+        /// </summary>
+        /// <param name="refreshDisplay">
+        /// if true, the control is immediately refresh after the operation is completed.
+        /// </param>
+        private void _Delete(bool refreshDisplay=true)
+        {
+            int readPos = _BufferCurrentPosition - 1;
+            if (readPos < 0)
+                readPos = MAX_BUFFER_SIZE - 1;
+
+            
+            int lastPos = readPos;
+            while(true)
+            {
+                char c = _Buffer[readPos];
+
+                if(lastPos != readPos)
+                {
+                    _Buffer[lastPos] = c;
+                }
+
+                lastPos = readPos;
+                readPos++;
+                if(readPos >= MAX_BUFFER_SIZE)
+                {
+                    readPos = 0;
+                }
+
+
+                if (c == '\0')
+                {
+                    // End of buffer, just add one null char after (keep 2)
+                    _Buffer[readPos] = '\0';
+                    break;
+                }
+            }
+
+            _BufferCurrentPosition--;
+
+            if(refreshDisplay)
+                Refresh();
+        }
+
+        /// <summary>
         /// Writes the given line to the console at the current position.
         /// </summary>
         /// <param name="text">the text to write to the console</param>
@@ -357,6 +408,79 @@ namespace WFTerminal
             if (_BufferCurrentPosition + 1 >= MAX_BUFFER_SIZE)
                 _Buffer[0] = '\0';
             else _Buffer[_BufferCurrentPosition + 1] = '\0';
+
+            ScrollToCurrentPosition(false);
+
+            if (refreshDisplay)
+                Refresh();
+        }
+
+        /// <summary>
+        /// Inserts the given line to the console at the current position.
+        /// </summary>
+        /// <param name="text">the text to write to the console</param>
+        /// <param name="refreshDisplay">
+        /// if true, the control is immediately refresh after the operation is completed.
+        /// </param>
+        private void _Insert(string text, Color color, bool refreshDisplay = true)
+        {
+            int textToPush = 2;
+
+            // Calculate how much text to push
+            int readPos = _BufferCurrentPosition;
+            while(true)
+            {
+                char c = _Buffer[readPos];
+
+                if (c == '\0')
+                {
+                    break;
+                }
+
+                textToPush++;
+                readPos++;
+                if (readPos > MAX_BUFFER_SIZE)
+                    readPos = 0;
+            }
+
+            // Push all text
+            readPos = (_BufferCurrentPosition + textToPush - 1) % MAX_BUFFER_SIZE;
+            int writePos = (_BufferCurrentPosition + text.Length + textToPush - 1) % MAX_BUFFER_SIZE;
+
+            while(textToPush > 0)
+            {
+                _Buffer[writePos] = _Buffer[readPos];
+                _BufferColours[writePos--] = _BufferColours[readPos--];
+                
+                if (writePos < 0)
+                    writePos = MAX_BUFFER_SIZE - 1;
+
+                if (readPos < 0)
+                    readPos = MAX_BUFFER_SIZE - 1;
+
+                textToPush--;
+            }
+
+            // Write text directly at position
+
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (_BufferCurrentPosition == _PlaceholderIndex)
+                    _Placeholder = null; // Ensure previous placeholder is erasesd.
+
+                _Buffer[_BufferCurrentPosition] = text[i];
+                _BufferColours[_BufferCurrentPosition] = FindBrush(color);
+
+                // Increment buffer position and reset to zero if needed.
+                _BufferCurrentPosition++;
+                if (_BufferCurrentPosition >= MAX_BUFFER_SIZE)
+                {
+                    _BufferCurrentPosition = 0;
+                }
+            }
+
+            // No need to write two nulls ahead as this should have been
+            // pushed along with the other text
 
             ScrollToCurrentPosition(false);
 
@@ -432,7 +556,7 @@ namespace WFTerminal
         public void ScrollToNextLine(bool refreshDisplay = true)
         {
             int readPos = _BufferDisplayLine;
-            while (readPos != _BufferCurrentPosition)
+            while (true)
             {
                 char c = _Buffer[readPos];
                 if (c == '\0')
@@ -469,7 +593,7 @@ namespace WFTerminal
             if (readPos < 0)
                 readPos = MAX_BUFFER_SIZE - 1;
             bool foundFirstLine = false;
-            while (readPos != _BufferCurrentPosition)
+            while (true)
             {
                 char c = _Buffer[readPos];
                 if (c == '\0')
@@ -551,16 +675,165 @@ namespace WFTerminal
             }
         }
 
+        /// <summary>
+        /// Moves the current position to the last word or the beginning of the current word.
+        /// User input must be enabled
+        /// </summary>
+        /// <param name="refreshDisplay">
+        /// if true, the control is immediately refresh after the operation is completed.
+        /// </param>
+        public void MoveLastWord(bool refreshDisplay=true)
+        {
+            if (!UserInputMode)
+                return;
+
+            int lastPos = _BufferCurrentPosition;
+
+            int readPos = _BufferCurrentPosition - 1;
+            if (readPos < 0)
+                readPos = MAX_BUFFER_SIZE - 1;
+
+            while(true)
+            {
+                if(readPos == _UserInputStartIndex)
+                {
+                    _BufferCurrentPosition = _UserInputStartIndex;
+                    break;
+                }    
+                char c = _Buffer[readPos];
+                if (!char.IsLetterOrDigit(c))
+                {
+                    _BufferCurrentPosition = readPos + 1;
+                    break;
+                }
+
+                readPos--;
+                if (readPos < 0)
+                    readPos = MAX_BUFFER_SIZE - 1;
+            }
+
+            // If same position at least attempt to move one behind.
+            if (lastPos == _BufferCurrentPosition)
+                MoveLast(false);
+
+            if (refreshDisplay)
+                Refresh();
+        }
+
+        /// <summary>
+        /// Moves the current position to the next word or the end of the current word.
+        /// User Input must be enabled.
+        /// </summary>
+        /// <param name="refreshDisplay">
+        /// if true, the control is immediately refresh after the operation is completed.
+        /// </param>
+        public void MoveNextWord(bool refreshDisplay=true)
+        {
+            if (!UserInputMode)
+                return;
+
+            int lastPos = _BufferCurrentPosition;
+
+            int readPos = _BufferCurrentPosition + 1;
+            if (readPos >= MAX_BUFFER_SIZE)
+                readPos = 0;
+
+            while (true)
+            {
+                char c = _Buffer[readPos];
+                 
+                if (!char.IsLetterOrDigit(c))
+                {
+                    _BufferCurrentPosition = readPos - 1;
+                    break;
+                }
+
+                readPos++;
+                if (readPos >= MAX_BUFFER_SIZE)
+                    readPos = 0;
+            }
+
+            // If same position at least attempt to move one ahead.
+            if (lastPos == _BufferCurrentPosition)
+                MoveNext(false);
+
+
+            if (refreshDisplay)
+                Refresh();
+        }
+
+        /// <summary>
+        /// Moves the current position by one behind if applicable.
+        /// User Input must be enabled.
+        /// </summary>
+        /// <param name="refreshDisplay">
+        /// if true, the control is immediately refresh after the operation is completed.
+        /// </param>
+        public void MoveLast(bool refreshDisplay = true)
+        {
+            if (!UserInputMode)
+                return;
+            
+            if (_BufferCurrentPosition == _UserInputStartIndex)
+                return; // At beginning of input
+
+            int readPos = _BufferCurrentPosition - 1;
+            if (readPos < 0)
+                readPos = MAX_BUFFER_SIZE - 1;
+
+            _BufferCurrentPosition = readPos;
+
+            if (refreshDisplay)
+                Refresh();
+        }
+
+        /// <summary>
+        /// Moves the current position by one ahead if applicable.
+        /// User Input must be enabled.
+        /// </summary>
+        /// <param name="refreshDisplay">
+        /// if true, the control is immediately refresh after the operation is completed.
+        /// </param>
+        public void MoveNext(bool refreshDisplay=true)
+        {
+            if (!UserInputMode)
+                return;
+
+            int readPos = _BufferCurrentPosition + 1;
+            if (readPos >= MAX_BUFFER_SIZE)
+                readPos = 0;
+
+            if (_Buffer[readPos] == '\0' && _Buffer[_BufferCurrentPosition] == '\0')
+                return; // At end of input.
+
+            _BufferCurrentPosition = readPos;
+
+
+            if (refreshDisplay)
+                Refresh();
+        }
+
+
         protected override void OnMouseWheel(MouseEventArgs e)
         {
             int times = Math.Abs(e.Delta) / DeltaWheelSensitivity;
             if (e.Delta < 0) // Scroll down
             {
-                ScrollToNextLine(false);
+                int lines = NumberOfLinesToCurrentPosition;
+                while (times > 0 && lines > 1)
+                {
+                    ScrollToNextLine(false);
+                    times--;
+                    lines--;
+                }
             }
             else // Scroll up
             {
-                ScrollToLastLine(false);
+                while (times > 0)
+                {
+                    ScrollToLastLine(false);
+                    times--;
+                }
             }
             Refresh();
             base.OnMouseWheel(e);
@@ -610,6 +883,48 @@ namespace WFTerminal
 
                 return Encoding.ASCII.GetString(chars);
             }
+        }
+
+        /// <summary>
+        /// Gets the buffer position from the screen position (relative to control)
+        /// </summary>
+        /// <param name="px">the x position relative to the control (top-left starts at zero)</param>
+        /// <param name="py">the y position relative to the control (top-left starts at zero)</param>
+        /// <returns>the buffer index (or -1 if currently over a null character)</returns>
+        public int GetBufferPositionFromScreen(int px, int py) {
+            int x = 2;
+            int y = 2;
+
+            int rows = Rows;
+            int readPos = _BufferDisplayLine;
+
+            while (rows > 0)
+            {
+                char c = _Buffer[readPos];
+
+                if (c == '\0')
+                    break;
+
+                if (px >= x && py >= y && px <= x + CellWidth && py <= y + CellHeight)
+                    return readPos;
+
+                // Increment cell position
+                x += CellWidth;
+                if (c == '\n' || x >= Width - 2)
+                {
+                    x = 2;
+                    y += CellHeight;
+                    rows--;
+                }
+
+                readPos++;
+                if (readPos >= MAX_BUFFER_SIZE)
+                {
+                    readPos = 0;
+                }
+            }
+
+            return -1;
         }
         #endregion
 
@@ -664,9 +979,42 @@ namespace WFTerminal
             int rows = Rows;
             int readPos = _BufferDisplayLine;
 
-            
             int placeholderIndex = -1; // No current placeholder at the moment.
             int placeholderReadPos = 0;
+
+            // Draw all highlighting
+            while (rows > 0)
+            {
+                char c = _Buffer[readPos];
+
+                if (_BufferSelectLength > 0 && readPos >= _BufferSelectPosition && readPos < _BufferSelectPosition + _BufferSelectLength)
+                {
+                    // Draw slight background for highlighting
+                    e.Graphics.FillRectangle(FindBrush(HighlightColor), x, y, CellWidth, CellHeight);
+                }
+
+                // Increment cell position
+                x += CellWidth;
+                if (c == '\n' || x >= Width - 2)
+                {
+                    x = 2;
+                    y += CellHeight;
+                    rows--;
+                }
+
+                readPos++;
+                if (readPos >= MAX_BUFFER_SIZE)
+                {
+                    readPos = 0;
+                }
+            }
+
+            x = 2;
+            y = 2;
+
+            // Draw all text in current screen
+            rows = Rows;
+            readPos = _BufferDisplayLine;
             while (rows > 0)
             {
                 char c = _Buffer[readPos];
@@ -741,39 +1089,92 @@ namespace WFTerminal
         private void Terminal_KeyDown(object sender, KeyEventArgs e)
         {
             e.SuppressKeyPress = true;
+            if(e.KeyCode == Keys.C && e.Control) {
+                // Copy to clipboard
+                try
+                {
+                    if(Selection != null)
+                        Clipboard.SetText(Selection);
+                }
+                catch { }
+                return;
+            }
+
             if (UserInputMode)
             {
                 char conversion = GetUserKeyboardChar(e);
                 if (UserTypingVisible)
                 {
+                    if (e.KeyCode == Keys.Left)
+                    {
+                        if (e.Control) MoveLastWord();
+                        else MoveLast();
+                        return;
+                    }
+                    else if (e.KeyCode == Keys.Right)
+                    {
+                        if (e.Control) MoveNextWord();
+                        else MoveNext();
+                        return;
+                    }
+                    else if (e.KeyCode == Keys.V && e.Control)
+                    {
+                        try
+                        {
+                            // Get line from text (terminal does not support multi-line read lines)
+                            string txt = Clipboard.GetText();
+                            int lineIndex = txt.IndexOf(txt);
+                            if (lineIndex != -1)
+                                txt = txt.Substring(0, lineIndex);
+
+                            _Insert(Clipboard.GetText(), InputColor);
+                        }
+                        catch { }
+                        return;
+                    }
+                    else
                     if (e.KeyCode == Keys.Delete || e.KeyCode == Keys.Back)
                     {
                         if (_BufferCurrentPosition != _UserInputStartIndex)
                         {
-                            int deletePos = _BufferCurrentPosition - 1;
-                            if (deletePos < 0)
-                                deletePos = MAX_BUFFER_SIZE - 1;
-                            _Buffer[deletePos] = '\0';
-                            _BufferCurrentPosition = deletePos;
+                            _Delete();
                         }
+                        return;
                     }
                     else if (conversion != '\0')
-                        _Write(conversion.ToString(), InputColor);
+                        _Insert(conversion.ToString(), InputColor);
                 }
                 else
                 {
                     if (e.KeyCode == Keys.Delete || e.KeyCode == Keys.Back)
                     {
                         _StoredInvisibleUserInput = _StoredInvisibleUserInput.Substring(0, _StoredInvisibleUserInput.Length - 1);
+                        return;
+                    }
+                    else if (e.KeyCode == Keys.V && e.Control)
+                    {
+                        // Get line from text (terminal does not support multi-line read lines)
+                        try
+                        {
+                            string txt = Clipboard.GetText();
+                            int lineIndex = txt.IndexOf(txt);
+                            if (lineIndex != -1)
+                                txt = txt.Substring(0, lineIndex);
+                            _StoredInvisibleUserInput += txt;
+                        }
+                        catch { }
+                        return;
                     }
                     else if (conversion != '\0')
+                    {
                         _StoredInvisibleUserInput += conversion;
+                        return;
+                    }
                 }
 
 
                 if (e.KeyCode == Keys.Enter && _CurrentLineCallback != null)
                 {
-                    
                     // Accept line input
                     TerminalLineCallback callback = _CurrentLineCallback;
                     string input = CurrentUserInput;
@@ -806,7 +1207,6 @@ namespace WFTerminal
             }
         }
 
-        private static KeysConverter _KeyConverter = new KeysConverter();
         /// <summary>
         /// Converts key event args into a readable character.
         /// </summary>
@@ -820,6 +1220,8 @@ namespace WFTerminal
             // Check number cases
             switch(e.KeyCode)
             {
+                case Keys.Space:
+                    return ' ';
                 case Keys.D1:
                     return (e.Shift ? '!' : '1');
                 case Keys.D2:
@@ -840,6 +1242,12 @@ namespace WFTerminal
                     return (e.Shift ? '(' : '9');
                 case Keys.D0:
                     return (e.Shift ? ')' : '0');
+                case Keys.OemMinus:
+                    return (e.Shift ? '_' : '-');
+                case Keys.Oemplus:
+                    return (e.Shift ? '+' : '=');
+                case Keys.Oemtilde:
+                    return (e.Shift ? '~' : '`');
                 case Keys.Q:
                     return (caps ? 'Q' : 'q');
                 case Keys.W:
@@ -864,8 +1272,8 @@ namespace WFTerminal
                     return (e.Shift ? '{' : '[');
                 case Keys.OemCloseBrackets:
                     return (e.Shift ? '}' : ']');
-                case Keys.OemBackslash:
-                    return (e.Shift ? '\\' : '|');
+                case Keys.OemBackslash or Keys.OemPipe:
+                    return (e.Shift ? '|' : '\\');
                 case Keys.A:
                     return (caps ? 'A' : 'a');
                 case Keys.S:
@@ -942,6 +1350,65 @@ namespace WFTerminal
                     break;
             }
             return '\0';
+        }
+
+        #region Selection Handling
+
+        private bool _CapturingSelection = false;
+        private int _InitialSelection = 0;
+        private void Terminal_MouseDown(object sender, MouseEventArgs e)
+        {
+            _CapturingSelection = e.Button == MouseButtons.Left;
+            _InitialSelection = _BufferSelectPosition = GetBufferPositionFromScreen(e.X, e.Y);
+            _BufferSelectLength = 1;
+            Refresh();
+        }
+
+        private void Terminal_MouseUp(object sender, MouseEventArgs e)
+        {
+            _CapturingSelection = false;
+        }
+
+        private void Terminal_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_CapturingSelection)
+            {
+                int lastPos = _BufferSelectPosition;
+                int lastLength = _BufferSelectLength;
+                int pos = GetBufferPositionFromScreen(e.X, e.Y);
+                if(pos == -1)
+                {
+                    // Assume that the hover is over a null character (which should occur at end of output).
+                    _BufferSelectPosition = _InitialSelection;
+                    _BufferSelectLength = _BufferCurrentPosition - _BufferSelectPosition + 1;
+                }
+                else if (pos < _InitialSelection)
+                {
+                    _BufferSelectPosition = pos;
+                    _BufferSelectLength = _InitialSelection - _BufferSelectPosition + 1;
+                }
+                else
+                {
+                    _BufferSelectPosition = _InitialSelection;
+                    _BufferSelectLength = pos - _InitialSelection + 1;
+                }
+
+                if (lastLength != _BufferSelectLength || lastPos != _BufferSelectPosition)
+                    Refresh();
+            }
+        }
+        #endregion
+
+        protected override void OnResize(EventArgs e)
+        {
+            Refresh();
+            base.OnResize(e);
+        }
+
+        private void Terminal_PreviewKeyDown(object sender, PreviewKeyDownEventArgs e)
+        {
+            if (e.KeyCode == Keys.Left || e.KeyCode == Keys.Right)
+                e.IsInputKey = true;
         }
     }
 }

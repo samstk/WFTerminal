@@ -1,0 +1,14 @@
+C:\Users\samst\OneDrive\Documents\0. Projects\FormControls\WFTerminal\WFTerminal\WFTerminal\bin\Release\net6.0-windows\WFTerminal.deps.json
+C:\Users\samst\OneDrive\Documents\0. Projects\FormControls\WFTerminal\WFTerminal\WFTerminal\bin\Release\net6.0-windows\WFTerminal.dll
+C:\Users\samst\OneDrive\Documents\0. Projects\FormControls\WFTerminal\WFTerminal\WFTerminal\bin\Release\net6.0-windows\WFTerminal.pdb
+C:\Users\samst\OneDrive\Documents\0. Projects\FormControls\WFTerminal\WFTerminal\WFTerminal\obj\Release\net6.0-windows\WFTerminal.csproj.AssemblyReference.cache
+C:\Users\samst\OneDrive\Documents\0. Projects\FormControls\WFTerminal\WFTerminal\WFTerminal\obj\Release\net6.0-windows\WFTerminal.Terminal.resources
+C:\Users\samst\OneDrive\Documents\0. Projects\FormControls\WFTerminal\WFTerminal\WFTerminal\obj\Release\net6.0-windows\WFTerminal.csproj.GenerateResource.cache
+C:\Users\samst\OneDrive\Documents\0. Projects\FormControls\WFTerminal\WFTerminal\WFTerminal\obj\Release\net6.0-windows\WFTerminal.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\samst\OneDrive\Documents\0. Projects\FormControls\WFTerminal\WFTerminal\WFTerminal\obj\Release\net6.0-windows\WFTerminal.AssemblyInfoInputs.cache
+C:\Users\samst\OneDrive\Documents\0. Projects\FormControls\WFTerminal\WFTerminal\WFTerminal\obj\Release\net6.0-windows\WFTerminal.AssemblyInfo.cs
+C:\Users\samst\OneDrive\Documents\0. Projects\FormControls\WFTerminal\WFTerminal\WFTerminal\obj\Release\net6.0-windows\WFTerminal.csproj.CoreCompileInputs.cache
+C:\Users\samst\OneDrive\Documents\0. Projects\FormControls\WFTerminal\WFTerminal\WFTerminal\obj\Release\net6.0-windows\WFTerminal.dll
+C:\Users\samst\OneDrive\Documents\0. Projects\FormControls\WFTerminal\WFTerminal\WFTerminal\obj\Release\net6.0-windows\refint\WFTerminal.dll
+C:\Users\samst\OneDrive\Documents\0. Projects\FormControls\WFTerminal\WFTerminal\WFTerminal\obj\Release\net6.0-windows\WFTerminal.pdb
+C:\Users\samst\OneDrive\Documents\0. Projects\FormControls\WFTerminal\WFTerminal\WFTerminal\obj\Release\net6.0-windows\ref\WFTerminal.dll
