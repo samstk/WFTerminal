@@ -108,10 +108,10 @@ namespace WFTerminal
         }
 
         // Callbacks for read functions
-        private TerminalKeyEventCallback _CurrentKeyEventCallback;
-        private TerminalKeyCallback _CurrentKeyCallback;
-        private TerminalCharCallback _CurrentCharCallback;
-        private TerminalLineCallback _CurrentLineCallback;
+        private TerminalKeyEventCallback? _CurrentKeyEventCallback;
+        private TerminalKeyCallback? _CurrentKeyCallback;
+        private TerminalCharCallback? _CurrentCharCallback;
+        private TerminalLineCallback? _CurrentLineCallback;
         
 
         /// <summary>
@@ -324,6 +324,51 @@ namespace WFTerminal
         }
 
         /// <summary>
+        /// Inserts the given text at the current position.
+        /// Only usable in input mode (call function after read line)
+        /// </summary>
+        /// <remarks>
+        /// If the input is invisible (i.e. password), then it will only append
+        /// to the end of the current input.
+        /// </remarks>
+        /// <param name="text">the text to write to the console</param> 
+        /// <param name="refreshDisplay">
+        /// if true, the control is immediately refresh after the operation is completed.
+        /// </param>
+        public void Put(string text, bool refreshDisplay=true)
+        {
+            Put(text, InputColor, refreshDisplay);
+        }
+
+        /// <summary>
+        /// Inserts the given text at the current position.
+        /// Only usable in input mode.
+        /// </summary>
+        /// <remarks>
+        /// If the input is invisible (i.e. password), then it will only append
+        /// to the end of the current input.
+        /// </remarks>
+        /// <param name="text">the text to write to the console</param>
+        /// <param name="color">the color to write the text</param> 
+        /// <param name="refreshDisplay">
+        /// if true, the control is immediately refresh after the operation is completed.
+        /// </param>
+        public void Put(string text, Color color, bool refreshDisplay=true)
+        {
+            if (!UserInputMode) return;
+            if (UserTypingVisible)
+            {
+                _Insert(text, color, refreshDisplay);
+            }
+            else
+            {
+                _StoredInvisibleUserInput += _StoredInvisibleUserInput;
+                if (refreshDisplay)
+                    Refresh();
+            }
+        }
+
+        /// <summary>
         /// Writes the given line to the console at the current position.
         /// </summary>
         /// <param name="text">the text to write to the console</param>
@@ -339,6 +384,7 @@ namespace WFTerminal
         /// Writes the given line to the console at the current position.
         /// </summary>
         /// <param name="text">the text to write to the console</param>
+        /// <param name="color">the color to write the text</param>
         /// <param name="refreshDisplay">
         /// if true, the control is immediately refresh after the operation is completed.
         /// </param>
@@ -398,6 +444,7 @@ namespace WFTerminal
         /// Writes the given line to the console at the current position.
         /// </summary>
         /// <param name="text">the text to write to the console</param>
+        /// <param name="color">the color to write the text</param>
         /// <param name="refreshDisplay">
         /// if true, the control is immediately refresh after the operation is completed.
         /// </param>
@@ -433,6 +480,7 @@ namespace WFTerminal
         /// Inserts the given line to the console at the current position.
         /// </summary>
         /// <param name="text">the text to write to the console</param>
+        /// <param name="color">the color to write the text</param>
         /// <param name="refreshDisplay">
         /// if true, the control is immediately refresh after the operation is completed.
         /// </param>
@@ -516,7 +564,7 @@ namespace WFTerminal
         /// Writes the given line to the console at the current position.
         /// </summary>
         /// <param name="text">the text to write</param>
-        /// <param name="color">a custom color to print the terminal</param>
+        /// <param name="color">the color to write the text</param>
         /// <param name="refreshDisplay">
         /// if true, the control is immediately refresh after the operation is completed.
         /// </param>
@@ -937,6 +985,15 @@ namespace WFTerminal
 
             return -1;
         }
+        
+        /// <summary>
+        /// Redirects the standard console output (System.Console) to this
+        /// control if useTerminal is true
+        /// </summary>
+        public void RedirectStandardConsoleOut()
+        {
+            Console.SetOut(new TerminalStreamWriter(this));
+        }
         #endregion
 
         #region Buffer Rendering
@@ -1101,7 +1158,7 @@ namespace WFTerminal
             Refresh();
         }
 
-        
+        #region Key Handling
         private void Terminal_KeyDown(object sender, KeyEventArgs e)
         {
             e.SuppressKeyPress = true;
@@ -1367,6 +1424,7 @@ namespace WFTerminal
             }
             return '\0';
         }
+        #endregion
 
         #region Selection Handling
 
