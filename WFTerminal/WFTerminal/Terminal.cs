@@ -969,7 +969,7 @@ namespace WFTerminal
 
                 // Increment cell position
                 x += CellWidth;
-                if (c == '\n' || x >= Width - 2)
+                if (c == '\n' || x >= Width - 2 - CellWidth)
                 {
                     x = 2;
                     y += CellHeight;
@@ -1065,7 +1065,7 @@ namespace WFTerminal
 
                 // Increment cell position
                 x += CellWidth;
-                if (c == '\n' || x >= Width - 2)
+                if (c == '\n' || x >= Width - 2 - CellWidth)
                 {
                     x = 2;
                     y += CellHeight;
@@ -1134,7 +1134,7 @@ namespace WFTerminal
 
                 // Increment cell position
                 x += CellWidth;
-                if (c == '\n' || x >= Width - 2)
+                if (c == '\n' || x >= Width - 2 - CellWidth)
                 {
                     x = 2;
                     y += CellHeight;
