@@ -51,7 +51,7 @@ namespace WFTerminal
             this.DoubleBuffered = true;
         }
 
-        #region Data & Exceptions
+        #region Data Input
         /// <summary>
         /// Gets whether the terminal is currently in user input mode.
         /// If so, then nothing can be written to the terminal.
@@ -271,11 +271,6 @@ namespace WFTerminal
         private int _BufferDisplayLine = 0;
 
         /// <summary>
-        /// Get the min position of the buffer (index of where the first line starts)
-        /// </summary>
-        private int _BufferMinPosition = 0;
-
-        /// <summary>
         /// Get or set the current position in the buffer.
         /// </summary>
         private int _BufferCurrentPosition = 0;
@@ -283,7 +278,7 @@ namespace WFTerminal
         /// <summary>
         /// Get or set the select position in the buffer
         /// </summary>
-        private int _BufferSelectPosition = 0;
+        private int _BufferSelectPosition = -1;
         
         /// <summary>
         /// Get or set the select length in the buffer
@@ -304,6 +299,28 @@ namespace WFTerminal
             SolidBrush brush = new SolidBrush(color);
             TextBrushes.Add(color, brush);
             return brush;
+        }
+
+        /// <summary>
+        /// Clears everything on the terminal
+        /// </summary>
+        /// <param name="refreshDisplay">
+        /// if true, the control is immediately refresh after the operation is completed.
+        /// </param>
+        public void Clear(bool refreshDisplay=true)
+        {
+            EndInput();
+            _BufferCurrentPosition = 0;
+            _Placeholder = null;
+            _PlaceholderIndex = -1;
+            _BufferDisplayLine = 0;
+            _BufferSelectPosition = -1;
+            _BufferSelectLength = 0;
+            _Buffer[0] = '\0';
+            _Buffer[1] = '\0';
+            _Buffer[MAX_BUFFER_SIZE - 1] = '\0';
+            if (refreshDisplay)
+                Refresh();
         }
 
         /// <summary>
@@ -344,7 +361,6 @@ namespace WFTerminal
             if (readPos < 0)
                 readPos = MAX_BUFFER_SIZE - 1;
 
-            
             int lastPos = readPos;
             while(true)
             {
@@ -371,6 +387,7 @@ namespace WFTerminal
                 }
             }
 
+            
             _BufferCurrentPosition--;
 
             if(refreshDisplay)
@@ -388,9 +405,6 @@ namespace WFTerminal
         {
             for (int i = 0; i < text.Length; i++)
             {
-                if (_BufferCurrentPosition == _PlaceholderIndex)
-                    _Placeholder = null; // Ensure previous placeholder is erasesd.
-
                 _Buffer[_BufferCurrentPosition] = text[i];
                 _BufferColours[_BufferCurrentPosition] = FindBrush(color);
 
@@ -465,9 +479,6 @@ namespace WFTerminal
 
             for (int i = 0; i < text.Length; i++)
             {
-                if (_BufferCurrentPosition == _PlaceholderIndex)
-                    _Placeholder = null; // Ensure previous placeholder is erasesd.
-
                 _Buffer[_BufferCurrentPosition] = text[i];
                 _BufferColours[_BufferCurrentPosition] = FindBrush(color);
 
@@ -983,6 +994,8 @@ namespace WFTerminal
             int placeholderReadPos = 0;
 
             // Draw all highlighting
+            bool exitAfterPlaceholder = false;
+
             while (rows > 0)
             {
                 char c = _Buffer[readPos];
@@ -1045,9 +1058,12 @@ namespace WFTerminal
                         && readPos >= placeholderIndex
                         && readPos < placeholderIndex + _Placeholder.Length)
                     {
+                        if (c == '\0')
+                            exitAfterPlaceholder = true;
                         c = _Placeholder[placeholderReadPos++];
                         textBrush = _PlaceholderBrush;
                     }
+                    else if (exitAfterPlaceholder) break;
 
                     if (c == '\0')
                         break;
