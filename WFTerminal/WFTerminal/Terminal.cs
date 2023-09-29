@@ -173,6 +173,13 @@ namespace WFTerminal
 
         // Callbacks for read functions
         private TerminalKeyEventCallback? _CurrentKeyEventCallback;
+
+        [Description("Occurs when a line has been processed in FreeInputMode.")]
+        /// <summary>
+        /// Occurs when a line has been processed in FreeInputMode
+        /// </summary>
+        public event TerminalLineCallback? OnProcessFreeInputLine;
+
         private TerminalKeyCallback? _CurrentKeyCallback;
         private TerminalCharCallback? _CurrentCharCallback;
         private TerminalLineCallback? _CurrentLineCallback;
@@ -936,11 +943,18 @@ namespace WFTerminal
             {
                 if (AllowOutputOnUserInputMode)
                 {
-                    _Insert(text, color, _UserInputStartIndex, false);
-                    _UserInputStartIndex = (_UserInputStartIndex + text.Length) % MAX_BUFFER_SIZE;
-                    if (_PlaceholderIndex != -1)
-                        _PlaceholderIndex = (_PlaceholderIndex + text.Length) % MAX_BUFFER_SIZE;
-
+                    if (_UserInputStartIndex == -1)
+                    {
+                        // Simply write at end of location
+                        _Write(text, color, Color.Transparent, false);
+                    }
+                    else
+                    {
+                        _Insert(text, color, _UserInputStartIndex, false);
+                        _UserInputStartIndex = (_UserInputStartIndex + text.Length) % MAX_BUFFER_SIZE;
+                        if (_PlaceholderIndex != -1)
+                            _PlaceholderIndex = (_PlaceholderIndex + text.Length) % MAX_BUFFER_SIZE;
+                    }
                     if (refreshDisplay)
                         Refresh();
                 }
@@ -1930,6 +1944,8 @@ namespace WFTerminal
                     _Write("\n", InputColor, Color.Transparent);
                     if(callback != null)
                         callback(input);
+
+                    OnProcessFreeInputLine?.Invoke(input);
 
                     if (_InputStream != null)
                     {

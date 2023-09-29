@@ -20,6 +20,8 @@ Add it to your form as normal or initialize it elsewhere.
 * Multi-color writing (output only)
 * Selection (incl. Copy + Paste - Ctrl+C/V)
 * RedirectStandardConsoleOut function to map System.Console output to the terminal
+* Minor Stream support (InputStream single line, OutputStream write to terminal)
+* ANSI colour support 
 
 ## Limitations
 * May not contain all the QoL improvements that certain window interfaces have.
