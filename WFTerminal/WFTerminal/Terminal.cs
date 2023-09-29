@@ -53,10 +53,69 @@ namespace WFTerminal
 
         #region Data Input
         /// <summary>
+        /// If true, then output (via Write function) can be appended during UserInputMode.
+        /// Sometimes necessary due to asynchronous/multithread operations where the messages for the input
+        /// may be detected after the prompt for input itself.
+        /// </summary>
+        /// <remarks>
+        /// All outputs during UserInput will be appended at the before the input start
+        /// </remarks>
+        [Description("If true, then output (via Write function) can be appended during UserInputMode.\r\n" +
+            "Sometimes necessary due to asynchronous/multithread operations where the messages for the input\r\n" +
+            "may be detected after the prompt for input itself.\r\nAll outputs during UserInput will be appended at the before the input start"),
+            Category("Behavior")]
+        public bool AllowOutputOnUserInputMode { get; set; } = false;
+
+        /// <summary>
+        /// If true, then the user may use the array keys to move their selection
+        /// </summary>
+        [Description("If true, then the user may use the array keys to move their selection"),
+            Category("Behaviour")]
+        public bool AllowInputPositionMovement { get; set; } = true;
+        /// <summary>
+        /// If true, then the software has requested for user input.
+        /// </summary>
+        private bool _UserInputMode = false;
+
+        [Description("If true, then the terminal is always is UserInputMode. Ensure AllowOutputOnUserInputMode is enabled."),
+            Category("Behavior")]
+        /// <summary>
+        /// If true, then the terminal is always is UserInputMode.
+        /// </summary>
+        /// <remarks>
+        /// Ensure AllowOutputOnUserInputMode is enabled.
+        /// </remarks>
+        public bool FreeInputMode { get; set; } = false;
+
+        [Description("If true and FreeInputMode is true, then the terminal attempts to get the current writing position at first input.\r\n Due to the nature of free input mode, this may be necessary to avoid allowing deletion of previous prompts."),
+            Category("Behavior")]
+        /// <summary>
+        /// If true, then the terminal attempts to get the current writing position at first input.
+        /// Due to the nature of free input mode, this may be necessary to avoid allowing deletion of previous prompts.
+        /// </summary>
+        /// <remarks>
+        /// FreeInputMode must be enabled.
+        /// </remarks>
+        public bool RestrictFreeInputMode { get; set; } = true;
+
+        /// <summary>
         /// Gets whether the terminal is currently in user input mode.
         /// If so, then nothing can be written to the terminal.
         /// </summary>
-        public bool UserInputMode { get; private set; } = false;
+        /// <remarks>
+        /// If FreeInputMode is set to true, then this will be fixed
+        /// to true.
+        /// </remarks>
+        public bool UserInputMode { 
+            get
+            {
+                return FreeInputMode || _UserInputMode;
+            }
+            set
+            {
+                _UserInputMode = value;
+            }
+        }
 
         /// <summary>
         /// Gets whether the current input is visible.
@@ -87,6 +146,11 @@ namespace WFTerminal
                 }
                 else
                 {
+                    if (_UserInputStartIndex < 0)
+                    {
+                        return null;
+                    }
+
                     string line = "";
                     int readPos = _UserInputStartIndex;
                     while(true)
@@ -195,6 +259,7 @@ namespace WFTerminal
         public void EndInput()
         {
             UserInputMode = false;
+            _UserInputStartIndex = -1;
             _CurrentKeyEventCallback = null;
             _CurrentCharCallback = null;
             _CurrentLineCallback = null;
@@ -266,6 +331,11 @@ namespace WFTerminal
         private SolidBrush[] _BufferColours = new SolidBrush[MAX_BUFFER_SIZE];
 
         /// <summary>
+        /// Gets or sets the back colours set on the buffer.
+        /// </summary>
+        private SolidBrush[] _BufferBackColours = new SolidBrush[MAX_BUFFER_SIZE];
+
+        /// <summary>
         /// Get or set the location (char index) of the starting line to display.
         /// </summary>
         private int _BufferDisplayLine = 0;
@@ -292,6 +362,9 @@ namespace WFTerminal
         /// <returns>the brush o</returns>
         private SolidBrush FindBrush(Color color)
         {
+            if (color == Color.Transparent)
+                return null;
+
             if (TextBrushes.ContainsKey(color))
                 return TextBrushes[color];
 
@@ -369,7 +442,7 @@ namespace WFTerminal
         }
 
         /// <summary>
-        /// Writes the given line to the console at the current position.
+        /// Writes the given text to the console at the current position.
         /// </summary>
         /// <param name="text">the text to write to the console</param>
         /// <param name="refreshDisplay">
@@ -378,6 +451,475 @@ namespace WFTerminal
         public void Write(string text, bool refreshDisplay = true)
         {
             Write(text, ForeColor, refreshDisplay);
+        }
+
+
+
+        #region ANSI Color Converters
+        private Color _ANSI8ColorForeground(int code) => code switch
+        {
+            30 => Color.Black,
+            31 => Color.Red,
+            32 => Color.Green,
+            33 => Color.Yellow,
+            34 => Color.Blue,
+            35 => Color.Magenta,
+            36 => Color.Cyan,
+            37 => Color.WhiteSmoke,
+            0 => ForeColor,
+            _ => Color.Transparent
+        };
+
+        private Color _ANSI16ColorForeground(int code) => code switch
+        {
+            30 => Color.FromArgb(12,12,12),
+            31 => Color.FromArgb(255, 34, 34),
+            32 => Color.LightGreen,
+            33 => Color.LightYellow,
+            34 => Color.LightBlue,
+            35 => Color.FromArgb(255, 34, 255),
+            36 => Color.LightCyan,
+            37 => Color.White,
+            0 => ForeColor,
+            _ => Color.Transparent
+        };
+
+        private Color _ANSI8ColorBackground(int code) => code switch
+        {
+            40 => Color.Black,
+            41 => Color.Red,
+            42 => Color.Green,
+            43 => Color.Yellow,
+            44 => Color.Blue,
+            45 => Color.Magenta,
+            46 => Color.Cyan,
+            47 => Color.WhiteSmoke,
+            _ => Color.Transparent // No change
+        };
+
+        private Color _ANSI16ColorBackground(int code) => code switch
+        {
+            40 => Color.FromArgb(12, 12, 12),
+            41 => Color.FromArgb(255, 34, 34),
+            42 => Color.LightGreen,
+            43 => Color.LightYellow,
+            44 => Color.LightBlue,
+            45 => Color.FromArgb(255, 34, 255),
+            46 => Color.LightCyan,
+            47 => Color.White,
+            _ => Color.Transparent // No change
+        };
+
+        private static Color[] _ANSI256Colors = new Color[256]
+        {
+            Color.Transparent,
+            Color.FromArgb(128,0,0),
+        Color.FromArgb(0,128,0),
+        Color.FromArgb(128,128,0),
+        Color.FromArgb(0,0,128),
+        Color.FromArgb(128,0,128),
+        Color.FromArgb(0,128,128),
+        Color.FromArgb(192,192,192),
+        Color.FromArgb(128,128,128),
+        Color.FromArgb(255,0,0),
+        Color.FromArgb(0,255,0),
+        Color.FromArgb(255,255,0),
+        Color.FromArgb(0,0,255),
+        Color.FromArgb(255,0,255),
+        Color.FromArgb(0,255,255),
+        Color.FromArgb(255,255,255),
+        Color.FromArgb(0,0,0),
+        Color.FromArgb(0,0,95),
+        Color.FromArgb(0,0,135),
+        Color.FromArgb(0,0,175),
+        Color.FromArgb(0,0,215),
+        Color.FromArgb(0,0,255),
+        Color.FromArgb(0,95,0),
+        Color.FromArgb(0,95,95),
+        Color.FromArgb(0,95,135),
+        Color.FromArgb(0,95,175),
+        Color.FromArgb(0,95,215),
+        Color.FromArgb(0,95,255),
+        Color.FromArgb(0,135,0),
+        Color.FromArgb(0,135,95),
+        Color.FromArgb(0,135,135),
+        Color.FromArgb(0,135,175),
+        Color.FromArgb(0,135,215),
+        Color.FromArgb(0,135,255),
+        Color.FromArgb(0,175,0),
+        Color.FromArgb(0,175,95),
+        Color.FromArgb(0,175,135),
+        Color.FromArgb(0,175,175),
+        Color.FromArgb(0,175,215),
+        Color.FromArgb(0,175,255),
+        Color.FromArgb(0,215,0),
+        Color.FromArgb(0,215,95),
+        Color.FromArgb(0,215,135),
+        Color.FromArgb(0,215,175),
+        Color.FromArgb(0,215,215),
+        Color.FromArgb(0,215,255),
+        Color.FromArgb(0,255,0),
+        Color.FromArgb(0,255,95),
+        Color.FromArgb(0,255,135),
+        Color.FromArgb(0,255,175),
+        Color.FromArgb(0,255,215),
+        Color.FromArgb(0,255,255),
+        Color.FromArgb(95,0,0),
+        Color.FromArgb(95,0,95),
+        Color.FromArgb(95,0,135),
+        Color.FromArgb(95,0,175),
+        Color.FromArgb(95,0,215),
+        Color.FromArgb(95,0,255),
+        Color.FromArgb(95,95,0),
+        Color.FromArgb(95,95,95),
+        Color.FromArgb(95,95,135),
+        Color.FromArgb(95,95,175),
+        Color.FromArgb(95,95,215),
+        Color.FromArgb(95,95,255),
+        Color.FromArgb(95,135,0),
+        Color.FromArgb(95,135,95),
+        Color.FromArgb(95,135,135),
+        Color.FromArgb(95,135,175),
+        Color.FromArgb(95,135,215),
+        Color.FromArgb(95,135,255),
+        Color.FromArgb(95,175,0),
+        Color.FromArgb(95,175,95),
+        Color.FromArgb(95,175,135),
+        Color.FromArgb(95,175,175),
+        Color.FromArgb(95,175,215),
+        Color.FromArgb(95,175,255),
+        Color.FromArgb(95,215,0),
+        Color.FromArgb(95,215,95),
+        Color.FromArgb(95,215,135),
+        Color.FromArgb(95,215,175),
+        Color.FromArgb(95,215,215),
+        Color.FromArgb(95,215,255),
+        Color.FromArgb(95,255,0),
+        Color.FromArgb(95,255,95),
+        Color.FromArgb(95,255,135),
+        Color.FromArgb(95,255,175),
+        Color.FromArgb(95,255,215),
+        Color.FromArgb(95,255,255),
+        Color.FromArgb(135,0,0),
+        Color.FromArgb(135,0,95),
+        Color.FromArgb(135,0,135),
+        Color.FromArgb(135,0,175),
+        Color.FromArgb(135,0,215),
+        Color.FromArgb(135,0,255),
+        Color.FromArgb(135,95,0),
+        Color.FromArgb(135,95,95),
+        Color.FromArgb(135,95,135),
+        Color.FromArgb(135,95,175),
+        Color.FromArgb(135,95,215),
+        Color.FromArgb(135,95,255),
+        Color.FromArgb(135,135,0),
+        Color.FromArgb(135,135,95),
+        Color.FromArgb(135,135,135),
+        Color.FromArgb(135,135,175),
+        Color.FromArgb(135,135,215),
+        Color.FromArgb(135,135,255),
+        Color.FromArgb(135,175,0),
+        Color.FromArgb(135,175,95),
+        Color.FromArgb(135,175,135),
+        Color.FromArgb(135,175,175),
+        Color.FromArgb(135,175,215),
+        Color.FromArgb(135,175,255),
+        Color.FromArgb(135,215,0),
+        Color.FromArgb(135,215,95),
+        Color.FromArgb(135,215,135),
+        Color.FromArgb(135,215,175),
+        Color.FromArgb(135,215,215),
+        Color.FromArgb(135,215,255),
+        Color.FromArgb(135,255,0),
+        Color.FromArgb(135,255,95),
+        Color.FromArgb(135,255,135),
+        Color.FromArgb(135,255,175),
+        Color.FromArgb(135,255,215),
+        Color.FromArgb(135,255,255),
+        Color.FromArgb(175,0,0),
+        Color.FromArgb(175,0,95),
+        Color.FromArgb(175,0,135),
+        Color.FromArgb(175,0,175),
+        Color.FromArgb(175,0,215),
+        Color.FromArgb(175,0,255),
+        Color.FromArgb(175,95,0),
+        Color.FromArgb(175,95,95),
+        Color.FromArgb(175,95,135),
+        Color.FromArgb(175,95,175),
+        Color.FromArgb(175,95,215),
+        Color.FromArgb(175,95,255),
+        Color.FromArgb(175,135,0),
+        Color.FromArgb(175,135,95),
+        Color.FromArgb(175,135,135),
+        Color.FromArgb(175,135,175),
+        Color.FromArgb(175,135,215),
+        Color.FromArgb(175,135,255),
+        Color.FromArgb(175,175,0),
+        Color.FromArgb(175,175,95),
+        Color.FromArgb(175,175,135),
+        Color.FromArgb(175,175,175),
+        Color.FromArgb(175,175,215),
+        Color.FromArgb(175,175,255),
+        Color.FromArgb(175,215,0),
+        Color.FromArgb(175,215,95),
+        Color.FromArgb(175,215,135),
+        Color.FromArgb(175,215,175),
+        Color.FromArgb(175,215,215),
+        Color.FromArgb(175,215,255),
+        Color.FromArgb(175,255,0),
+        Color.FromArgb(175,255,95),
+        Color.FromArgb(175,255,135),
+        Color.FromArgb(175,255,175),
+        Color.FromArgb(175,255,215),
+        Color.FromArgb(175,255,255),
+        Color.FromArgb(215,0,0),
+        Color.FromArgb(215,0,95),
+        Color.FromArgb(215,0,135),
+        Color.FromArgb(215,0,175),
+        Color.FromArgb(215,0,215),
+        Color.FromArgb(215,0,255),
+        Color.FromArgb(215,95,0),
+        Color.FromArgb(215,95,95),
+        Color.FromArgb(215,95,135),
+        Color.FromArgb(215,95,175),
+        Color.FromArgb(215,95,215),
+        Color.FromArgb(215,95,255),
+        Color.FromArgb(215,135,0),
+        Color.FromArgb(215,135,95),
+        Color.FromArgb(215,135,135),
+        Color.FromArgb(215,135,175),
+        Color.FromArgb(215,135,215),
+        Color.FromArgb(215,135,255),
+        Color.FromArgb(215,175,0),
+        Color.FromArgb(215,175,95),
+        Color.FromArgb(215,175,135),
+        Color.FromArgb(215,175,175),
+        Color.FromArgb(215,175,215),
+        Color.FromArgb(215,175,255),
+        Color.FromArgb(215,215,0),
+        Color.FromArgb(215,215,95),
+        Color.FromArgb(215,215,135),
+        Color.FromArgb(215,215,175),
+        Color.FromArgb(215,215,215),
+        Color.FromArgb(215,215,255),
+        Color.FromArgb(215,255,0),
+        Color.FromArgb(215,255,95),
+        Color.FromArgb(215,255,135),
+        Color.FromArgb(215,255,175),
+        Color.FromArgb(215,255,215),
+        Color.FromArgb(215,255,255),
+        Color.FromArgb(255,0,0),
+        Color.FromArgb(255,0,95),
+        Color.FromArgb(255,0,135),
+        Color.FromArgb(255,0,175),
+        Color.FromArgb(255,0,215),
+        Color.FromArgb(255,0,255),
+        Color.FromArgb(255,95,0),
+        Color.FromArgb(255,95,95),
+        Color.FromArgb(255,95,135),
+        Color.FromArgb(255,95,175),
+        Color.FromArgb(255,95,215),
+        Color.FromArgb(255,95,255),
+        Color.FromArgb(255,135,0),
+        Color.FromArgb(255,135,95),
+        Color.FromArgb(255,135,135),
+        Color.FromArgb(255,135,175),
+        Color.FromArgb(255,135,215),
+        Color.FromArgb(255,135,255),
+        Color.FromArgb(255,175,0),
+        Color.FromArgb(255,175,95),
+        Color.FromArgb(255,175,135),
+        Color.FromArgb(255,175,175),
+        Color.FromArgb(255,175,215),
+        Color.FromArgb(255,175,255),
+        Color.FromArgb(255,215,0),
+        Color.FromArgb(255,215,95),
+        Color.FromArgb(255,215,135),
+        Color.FromArgb(255,215,175),
+        Color.FromArgb(255,215,215),
+        Color.FromArgb(255,215,255),
+        Color.FromArgb(255,255,0),
+        Color.FromArgb(255,255,95),
+        Color.FromArgb(255,255,135),
+        Color.FromArgb(255,255,175),
+        Color.FromArgb(255,255,215),
+        Color.FromArgb(255,255,255),
+        Color.FromArgb(8,8,8),
+        Color.FromArgb(18,18,18),
+        Color.FromArgb(28,28,28),
+        Color.FromArgb(38,38,38),
+        Color.FromArgb(48,48,48),
+        Color.FromArgb(58,58,58),
+        Color.FromArgb(68,68,68),
+        Color.FromArgb(78,78,78),
+        Color.FromArgb(88,88,88),
+        Color.FromArgb(98,98,98),
+        Color.FromArgb(108,108,108),
+        Color.FromArgb(118,118,118),
+        Color.FromArgb(128,128,128),
+        Color.FromArgb(138,138,138),
+        Color.FromArgb(148,148,148),
+        Color.FromArgb(158,158,158),
+        Color.FromArgb(168,168,168),
+        Color.FromArgb(178,178,178),
+        Color.FromArgb(188,188,188),
+        Color.FromArgb(198,198,198),
+        Color.FromArgb(208,208,208),
+        Color.FromArgb(218,218,218),
+        Color.FromArgb(228,228,228),
+        Color.FromArgb(238,238,238),
+        };
+
+        private Color _ANSIRGBColorForeground(List<int> code)
+        {
+            if(code.Count == 5) {
+                if (code[0] != 38)
+                    return Color.Transparent;
+                if (code[1] != 2)
+                    return Color.Transparent;
+                return Color.FromArgb(code[2], code[3], code[4]);
+            }
+            return Color.Transparent;
+        }
+
+        private Color _ANSIRGBColorBackground(List<int> code)
+        {
+            if (code.Count == 5)
+            {
+                if (code[0] != 48)
+                    return Color.Transparent;
+                if (code[1] != 2)
+                    return Color.Transparent;
+                return Color.FromArgb(code[2], code[3], code[4]);
+            }
+            return Color.Transparent;
+        }
+        #endregion
+
+        /// <summary>
+        /// Writes the given text to the console at the current position.
+        /// If linux ANSI colours are detected (up to 16 - or rgb), then draws them in the
+        /// given colours.
+        /// </summary>
+        /// <param name="text">the text to write to the console</param>
+        /// <param name="refreshDisplay">
+        /// if true, the control is immediately refresh after the operation is completed.
+        /// </param>
+        /// <returns>number of characters written to terminal</returns>
+        public int WriteLinux(string text, bool refreshDisplay = true)
+        {
+            Color color = ForeColor;
+            Color backColor = Color.Transparent;
+            List<int> escapeSections = new List<int>();
+            int writeCount = 0;
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (text[i] == '\u001b' || text[i] == '\x1b')
+                {
+                    escapeSections.Clear();
+                    string code = "";
+                    try
+                    {
+                        i++;
+                        if (i < text.Length && text[i] != '[')
+                            continue; // invalid ansi colour code.
+                        i++;
+                        while (i < text.Length)
+                        {
+                            char c = text[i++];
+                            if (c == 'm')
+                            {
+                                escapeSections.Add(int.Parse(code));
+                                code = "";
+                                i--;
+                                // At the end of ansi code
+                                break;
+                            }
+                            else if (c == ';')
+                            {
+                                escapeSections.Add(int.Parse(code));
+                                code = "";
+                            }
+                            else code += c;
+                        }
+
+                        if (escapeSections.Count == 1)
+                        {
+                            Color foreground = _ANSI8ColorForeground(escapeSections[0]);
+                            Color background = _ANSI8ColorBackground(escapeSections[0]);
+
+                            if (foreground != Color.Transparent)
+                                color = foreground;
+                            if (background != Color.Transparent)
+                                backColor = background;
+                        }
+                        else if (escapeSections.Count == 2 && escapeSections[1] == 1)
+                        {
+                            Color foreground = _ANSI16ColorForeground(escapeSections[0]);
+                            Color background = _ANSI16ColorBackground(escapeSections[0]);
+
+                            if (foreground != Color.Transparent)
+                                color = foreground;
+                            if (background != Color.Transparent)
+                                backColor = background;
+                        }
+                        else if (escapeSections.Count == 3 && escapeSections[1] == 5)
+                        {
+                            if (escapeSections[0] == 38)
+                            {
+                                Color foreground = _ANSI256Colors[escapeSections[2]];
+                                if (foreground != Color.Transparent)
+                                    color = foreground;
+                            }
+                            else if (escapeSections[0] == 48)
+                            {
+                                Color background = _ANSI256Colors[escapeSections[2]];
+                                if (background != Color.Transparent)
+                                    backColor = background;
+
+                            }
+
+
+                        }
+                        else
+                        {
+                            Color foreground = _ANSIRGBColorForeground(escapeSections);
+                            Color background = _ANSIRGBColorBackground(escapeSections);
+
+                            if (foreground != Color.Transparent)
+                                color = foreground;
+                            if (background != Color.Transparent)
+                                backColor = background;
+                        }
+                    }
+                    catch { /* error in ansi code */ }
+                }
+                else
+                {
+                    Write(text[i].ToString(), color, backColor, false);
+                    writeCount++;
+                }
+            }
+
+            if(refreshDisplay)
+                Refresh();
+
+            return writeCount;
+        }
+
+        /// <summary>
+        /// Writes the given text to the console at the current position.
+        /// If linux ANSI colours are detected (up to 16 - or rgb), then draws them in the
+        /// given colours.
+        /// </summary>
+        /// <param name="line">the text to write to the console</param>
+        /// <param name="refreshDisplay">
+        /// if true, the control is immediately refresh after the operation is completed.
+        /// </param>
+        /// <returns>number of characters written to terminal</returns>
+        public int WriteLinuxLine(string line, bool refreshDisplay = true)
+        {
+            return WriteLinux($"{line}\n", refreshDisplay);
         }
 
         /// <summary>
@@ -390,9 +932,55 @@ namespace WFTerminal
         /// </param>
         public void Write(string text, Color color, bool refreshDisplay = true)
         {
-            if (UserInputMode) return; // No typing can be done when input is expected.
+            if (UserInputMode)
+            {
+                if (AllowOutputOnUserInputMode)
+                {
+                    _Insert(text, color, _UserInputStartIndex, false);
+                    _UserInputStartIndex = (_UserInputStartIndex + text.Length) % MAX_BUFFER_SIZE;
+                    if (_PlaceholderIndex != -1)
+                        _PlaceholderIndex = (_PlaceholderIndex + text.Length) % MAX_BUFFER_SIZE;
 
-            _Write(text, color, refreshDisplay);
+                    if (refreshDisplay)
+                        Refresh();
+                }
+                return; // No typing can be done when input is expected.
+            }
+            _Write(text, color, Color.Transparent, refreshDisplay);
+        }
+
+        /// <summary>
+        /// Writes the given line to the console at the current position.
+        /// </summary>
+        /// <param name="text">the text to write to the console</param>
+        /// <param name="color">the color to write the text</param>
+        /// <param name="backColor">the color to draw the background</param>
+        /// <param name="refreshDisplay">
+        /// if true, the control is immediately refresh after the operation is completed.
+        /// </param>
+        public void Write(string text, Color color, Color backColor, bool refreshDisplay = true)
+        {
+            if (UserInputMode)
+            {
+                if (AllowOutputOnUserInputMode)
+                {
+                    if (_UserInputStartIndex > 0)
+                    {
+                        _Insert(text, color, _UserInputStartIndex, false);
+                        _UserInputStartIndex = (_UserInputStartIndex + text.Length) % MAX_BUFFER_SIZE;
+                        if (_PlaceholderIndex != -1)
+                            _PlaceholderIndex = (_PlaceholderIndex + text.Length) % MAX_BUFFER_SIZE;
+                    }
+                    else if (FreeInputMode)
+                    {
+                        _Write(text, color, backColor, false);
+                    }
+                    if (refreshDisplay)
+                        Refresh();
+                }
+                return; // No typing can be done when input is expected.
+            }
+            _Write(text, color, backColor, refreshDisplay);
         }
 
         /// <summary>
@@ -448,13 +1036,16 @@ namespace WFTerminal
         /// <param name="refreshDisplay">
         /// if true, the control is immediately refresh after the operation is completed.
         /// </param>
-        private void _Write(string text, Color color, bool refreshDisplay = true)
+        private void _Write(string text, Color color, Color backColor, bool refreshDisplay = true)
         {
             for (int i = 0; i < text.Length; i++)
             {
+                if (text[i] == '\a')
+                    continue; // Do not write special character \a
+
                 _Buffer[_BufferCurrentPosition] = text[i];
                 _BufferColours[_BufferCurrentPosition] = FindBrush(color);
-
+                _BufferBackColours[_BufferCurrentPosition] = FindBrush(backColor);
                 // Increment buffer position and reset to zero if needed.
                 _BufferCurrentPosition++;
                 if (_BufferCurrentPosition >= MAX_BUFFER_SIZE)
@@ -481,15 +1072,20 @@ namespace WFTerminal
         /// </summary>
         /// <param name="text">the text to write to the console</param>
         /// <param name="color">the color to write the text</param>
+        /// <param name="position">the position to insert in the buffer</param>
         /// <param name="refreshDisplay">
         /// if true, the control is immediately refresh after the operation is completed.
         /// </param>
-        private void _Insert(string text, Color color, bool refreshDisplay = true)
+        private void _Insert(string text, Color color, int position, bool refreshDisplay = true)
         {
             int textToPush = 2;
 
+            if (_BufferCurrentPosition >= position)
+            {
+                _BufferCurrentPosition = (_BufferCurrentPosition + text.Length) % MAX_BUFFER_SIZE;
+            }
             // Calculate how much text to push
-            int readPos = _BufferCurrentPosition;
+            int readPos = position;
             while(true)
             {
                 char c = _Buffer[readPos];
@@ -506,14 +1102,15 @@ namespace WFTerminal
             }
 
             // Push all text
-            readPos = (_BufferCurrentPosition + textToPush - 1) % MAX_BUFFER_SIZE;
-            int writePos = (_BufferCurrentPosition + text.Length + textToPush - 1) % MAX_BUFFER_SIZE;
+            readPos = (position + textToPush - 1) % MAX_BUFFER_SIZE;
+            int writePos = (position + text.Length + textToPush - 1) % MAX_BUFFER_SIZE;
 
             while(textToPush > 0)
             {
                 _Buffer[writePos] = _Buffer[readPos];
-                _BufferColours[writePos--] = _BufferColours[readPos--];
-                
+                _BufferColours[writePos] = _BufferColours[readPos];
+                _BufferBackColours[writePos--] = _BufferBackColours[readPos--];
+
                 if (writePos < 0)
                     writePos = MAX_BUFFER_SIZE - 1;
 
@@ -527,14 +1124,14 @@ namespace WFTerminal
 
             for (int i = 0; i < text.Length; i++)
             {
-                _Buffer[_BufferCurrentPosition] = text[i];
-                _BufferColours[_BufferCurrentPosition] = FindBrush(color);
-
+                _Buffer[position] = text[i];
+                _BufferColours[position] = FindBrush(color);
+                _BufferBackColours[position] = null; // default brush
                 // Increment buffer position and reset to zero if needed.
-                _BufferCurrentPosition++;
-                if (_BufferCurrentPosition >= MAX_BUFFER_SIZE)
+                position++;
+                if (position >= MAX_BUFFER_SIZE)
                 {
-                    _BufferCurrentPosition = 0;
+                    position = 0;
                 }
             }
 
@@ -545,6 +1142,19 @@ namespace WFTerminal
 
             if (refreshDisplay)
                 Refresh();
+        }
+
+        /// <summary>
+        /// Inserts the given line to the console at the current position.
+        /// </summary>
+        /// <param name="text">the text to write to the console</param>
+        /// <param name="color">the color to write the text</param>
+        /// <param name="refreshDisplay">
+        /// if true, the control is immediately refresh after the operation is completed.
+        /// </param>
+        private void _Insert(string text, Color color, bool refreshDisplay = true)
+        {
+            _Insert(text, color, _BufferCurrentPosition, refreshDisplay);
         }
 
         /// <summary>
@@ -994,6 +1604,58 @@ namespace WFTerminal
         {
             Console.SetOut(new TerminalStreamWriter(this));
         }
+
+        private Stream _InputStream;
+
+        /// <summary>
+        /// Gets or creates an input stream that results
+        /// from this terminal. If called, then AllowOutputOnUserInputMode
+        /// is set to true, and FreeInputMode is also set to true.
+        /// </summary>
+        /// <remarks>
+        /// Only one line is sent at a time (meaning that stream must be handled before another line is sent, else it
+        /// gets overriden)
+        /// </remarks>
+        /// <returns>the stream that is written to</returns>
+        public Stream GetInputStream()
+        {
+            AllowOutputOnUserInputMode = true;
+            FreeInputMode = true;
+            if (_InputStream == null)
+            {
+                _InputStream = new MemoryStream();
+            }
+            streamTimer.Enabled = true;
+            return _InputStream;
+        }
+
+        private Stream _OutputStream;
+
+
+        /// <summary>
+        /// Gets whether the output stream is a shell stream (and handled as such).
+        /// i.e. whether the contents being written to the stream indicate the entire terminal display.
+        /// </summary>
+        public bool OutputStreamIsShellStream { get; private set; } = false;
+        /// <summary>
+        /// Gets or creates an output stream that may
+        /// unconditionally write to this terminal at any time.
+        /// </summary>
+        /// <remarks>
+        /// The contents of the stream is treated as if it was linux (with ansi color supported)
+        /// </remarks>
+        /// <param name="shellStream">if true, then any inputs written to the stream immediately clears the current terminal</param>
+        /// <returns>the stream that is read into the terminal</returns>
+        public Stream GetOutputStream(bool shellStream=false)
+        {
+            OutputStreamIsShellStream = shellStream;
+            if (_OutputStream == null)
+            {
+                _OutputStream = new MemoryStream();
+            }
+            streamTimer.Enabled = true;
+            return _OutputStream;
+        }
         #endregion
 
         #region Buffer Rendering
@@ -1061,6 +1723,15 @@ namespace WFTerminal
                 {
                     // Draw slight background for highlighting
                     e.Graphics.FillRectangle(FindBrush(HighlightColor), x, y, CellWidth, CellHeight);
+                }
+                else
+                {
+                    // Draw given background
+                    SolidBrush backgroundBrush = _BufferBackColours[readPos];
+                    if(backgroundBrush != null)
+                    {
+                        e.Graphics.FillRectangle(backgroundBrush, x, y, CellWidth, CellHeight);
+                    }
                 }
 
                 // Increment cell position
@@ -1175,16 +1846,20 @@ namespace WFTerminal
 
             if (UserInputMode)
             {
+                if(FreeInputMode && RestrictFreeInputMode && _UserInputStartIndex < 0)
+                {
+                    _UserInputStartIndex = _BufferCurrentPosition;
+                }
                 char conversion = GetUserKeyboardChar(e);
                 if (UserTypingVisible)
                 {
-                    if (e.KeyCode == Keys.Left)
+                    if (AllowInputPositionMovement && e.KeyCode == Keys.Left)
                     {
                         if (e.Control) MoveLastWord();
                         else MoveLast();
                         return;
                     }
-                    else if (e.KeyCode == Keys.Right)
+                    else if (AllowInputPositionMovement && e.KeyCode == Keys.Right)
                     {
                         if (e.Control) MoveNextWord();
                         else MoveNext();
@@ -1246,14 +1921,25 @@ namespace WFTerminal
                 }
 
 
-                if (e.KeyCode == Keys.Enter && _CurrentLineCallback != null)
+                if (e.KeyCode == Keys.Enter)
                 {
                     // Accept line input
                     TerminalLineCallback callback = _CurrentLineCallback;
                     string input = CurrentUserInput;
                     EndInput();
-                    _Write("\n", InputColor);
-                    callback(input);
+                    _Write("\n", InputColor, Color.Transparent);
+                    if(callback != null)
+                        callback(input);
+
+                    if (_InputStream != null)
+                    {
+                        byte[] bytes = Encoding.ASCII.GetBytes(input+"\n");
+                        System.Diagnostics.Debug.WriteLine(input);
+                        _InputStream.Write(bytes, 0, bytes.Length);
+                        _InputStream.Flush();
+                        _InputStream.Position = 0;
+                        _InputStream.SetLength(bytes.Length);
+                    }
                 }
 
                 if (conversion == '\0')
@@ -1483,6 +2169,26 @@ namespace WFTerminal
         {
             if (e.KeyCode == Keys.Left || e.KeyCode == Keys.Right)
                 e.IsInputKey = true;
+        }
+
+        private void streamTimer_Tick(object sender, EventArgs e)
+        {
+            if(_OutputStream != null && _OutputStream.Length > 0)
+            {
+                _OutputStream.Position = 0;
+                string text = new StreamReader(_OutputStream).ReadToEnd();
+
+                if (OutputStreamIsShellStream)
+                    this.Clear(false);
+
+                int length = this.WriteLinux(text);
+
+                if (_UserInputStartIndex != -1)
+                    _UserInputStartIndex += length;
+
+                _OutputStream.Position = 0;
+                _OutputStream.SetLength(0);
+            }
         }
     }
 }

@@ -30,6 +30,7 @@
         {
             this.components = new System.ComponentModel.Container();
             this.minRefreshTimer = new System.Windows.Forms.Timer(this.components);
+            this.streamTimer = new System.Windows.Forms.Timer(this.components);
             this.SuspendLayout();
             // 
             // minRefreshTimer
@@ -37,6 +38,11 @@
             this.minRefreshTimer.Enabled = true;
             this.minRefreshTimer.Interval = 500;
             this.minRefreshTimer.Tick += new System.EventHandler(this.minRefreshTimer_Tick);
+            // 
+            // streamTimer
+            // 
+            this.streamTimer.Enabled = true;
+            this.streamTimer.Tick += new System.EventHandler(this.streamTimer_Tick);
             // 
             // Terminal
             // 
@@ -58,5 +64,6 @@
         #endregion
 
         private System.Windows.Forms.Timer minRefreshTimer;
+        private System.Windows.Forms.Timer streamTimer;
     }
 }
