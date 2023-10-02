@@ -805,7 +805,7 @@ namespace WFTerminal
 
         /// <summary>
         /// Writes the given text to the console at the current position.
-        /// If linux ANSI colours are detected (up to 16 - or rgb), then draws them in the
+        /// If ANSI colours are detected, then draws them in the
         /// given colours.
         /// </summary>
         /// <param name="text">the text to write to the console</param>
@@ -813,7 +813,7 @@ namespace WFTerminal
         /// if true, the control is immediately refresh after the operation is completed.
         /// </param>
         /// <returns>number of characters written to terminal</returns>
-        public int WriteLinux(string text, bool refreshDisplay = true)
+        public int WriteAnsi(string text, bool refreshDisplay = true)
         {
             Color color = ForeColor;
             Color backColor = Color.Transparent;
@@ -926,7 +926,7 @@ namespace WFTerminal
         /// <returns>number of characters written to terminal</returns>
         public int WriteLinuxLine(string line, bool refreshDisplay = true)
         {
-            return WriteLinux($"{line}\n", refreshDisplay);
+            return WriteAnsi($"{line}\n", refreshDisplay);
         }
 
         /// <summary>
@@ -2197,7 +2197,7 @@ namespace WFTerminal
                 if (OutputStreamIsShellStream)
                     this.Clear(false);
 
-                int length = this.WriteLinux(text);
+                int length = this.WriteAnsi(text);
 
                 if (_UserInputStartIndex != -1)
                     _UserInputStartIndex += length;
