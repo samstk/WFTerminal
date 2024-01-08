@@ -1,6 +1,6 @@
 # Windows Form Terminal Control
 Provides a terminal-styled control for windows forms.
-[Nuget](https://www.nuget.org/packages/WFTerminal)
+Have a look at the Nuget Package [here](https://www.nuget.org/packages/WFTerminal)
 - ![Nuget](https://img.shields.io/nuget/v/WFTerminal) ![Nuget](https://img.shields.io/nuget/dt/WFTerminal)
 - ![GitHub last commit (by committer)](https://img.shields.io/github/last-commit/samstk/WFTerminal)
 ## Getting Started
