@@ -1092,6 +1092,8 @@ namespace WFTerminal
         /// </param>
         private void _Insert(string text, Color color, int position, bool refreshDisplay = true)
         {
+            if (text == "\0") return;
+
             int textToPush = 2;
 
             if (_BufferCurrentPosition >= position)
@@ -1864,47 +1866,50 @@ namespace WFTerminal
                 {
                     _UserInputStartIndex = _BufferCurrentPosition;
                 }
-                char conversion = GetUserKeyboardChar(e);
+                try // Fallback in case unexpected crash.
+                {
+                    char conversion = GetUserKeyboardChar(e);
                 if (UserTypingVisible)
                 {
-                    if (AllowInputPositionMovement && e.KeyCode == Keys.Left)
-                    {
-                        if (e.Control) MoveLastWord();
-                        else MoveLast();
-                        return;
-                    }
-                    else if (AllowInputPositionMovement && e.KeyCode == Keys.Right)
-                    {
-                        if (e.Control) MoveNextWord();
-                        else MoveNext();
-                        return;
-                    }
-                    else if (e.KeyCode == Keys.V && e.Control)
-                    {
-                        try
+                    
+                        if (AllowInputPositionMovement && e.KeyCode == Keys.Left)
                         {
-                            // Get line from text (terminal does not support multi-line read lines)
-                            string txt = Clipboard.GetText();
-                            int lineIndex = txt.IndexOf(txt);
-                            if (lineIndex != -1)
-                                txt = txt.Substring(0, lineIndex);
+                            if (e.Control) MoveLastWord();
+                            else MoveLast();
+                            return;
+                        }
+                        else if (AllowInputPositionMovement && e.KeyCode == Keys.Right)
+                        {
+                            if (e.Control) MoveNextWord();
+                            else MoveNext();
+                            return;
+                        }
+                        else if (e.KeyCode == Keys.V && e.Control)
+                        {
+                            try
+                            {
+                                // Get line from text (terminal does not support multi-line read lines)
+                                string txt = Clipboard.GetText();
+                                int lineIndex = txt.IndexOf(txt);
+                                if (lineIndex != -1)
+                                    txt = txt.Substring(0, lineIndex);
 
-                            _Insert(Clipboard.GetText(), InputColor);
+                                _Insert(Clipboard.GetText(), InputColor);
+                            }
+                            catch { }
+                            return;
                         }
-                        catch { }
-                        return;
-                    }
-                    else
-                    if (e.KeyCode == Keys.Delete || e.KeyCode == Keys.Back)
-                    {
-                        if (_BufferCurrentPosition != _UserInputStartIndex)
+                        else
+                        if (e.KeyCode == Keys.Delete || e.KeyCode == Keys.Back)
                         {
-                            _Delete();
+                            if (_BufferCurrentPosition != _UserInputStartIndex)
+                            {
+                                _Delete();
+                            }
+                            return;
                         }
-                        return;
-                    }
-                    else if (conversion != '\0')
-                        _Insert(conversion.ToString(), InputColor);
+                        else if (conversion != '\0')
+                            _Insert(conversion.ToString(), InputColor);
                 }
                 else
                 {
@@ -1979,6 +1984,8 @@ namespace WFTerminal
                     EndInput();
                     callback(conversion);
                 }
+
+                } catch { }
             }
         }
 
