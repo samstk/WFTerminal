@@ -60,7 +60,7 @@ terminal1.RedirectStandardConsoleOut
 
 ### SSH / Shell Streams with SetSystemStream
 This way allows the terminal to act similar to Putty. Note that this doesn't have full ANSI support
-and program's like VIM may break this terminal.
+and programs like VIM may break this terminal.
 
 ``` cs
 // Example with Renci.SSHNet
