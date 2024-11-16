@@ -28,37 +28,38 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
-            this.minRefreshTimer = new System.Windows.Forms.Timer(this.components);
-            this.streamTimer = new System.Windows.Forms.Timer(this.components);
-            this.SuspendLayout();
+            components = new System.ComponentModel.Container();
+            minRefreshTimer = new System.Windows.Forms.Timer(components);
+            streamTimer = new System.Windows.Forms.Timer(components);
+            SuspendLayout();
             // 
             // minRefreshTimer
             // 
-            this.minRefreshTimer.Enabled = true;
-            this.minRefreshTimer.Interval = 500;
-            this.minRefreshTimer.Tick += new System.EventHandler(this.minRefreshTimer_Tick);
+            minRefreshTimer.Enabled = true;
+            minRefreshTimer.Interval = 500;
+            minRefreshTimer.Tick += minRefreshTimer_Tick;
             // 
             // streamTimer
             // 
-            this.streamTimer.Enabled = true;
-            this.streamTimer.Tick += new System.EventHandler(this.streamTimer_Tick);
+            streamTimer.Enabled = true;
+            streamTimer.Interval = 30;
+            streamTimer.Tick += streamTimer_Tick;
             // 
             // Terminal
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(12)))), ((int)(((byte)(12)))), ((int)(((byte)(12)))));
-            this.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(224)))), ((int)(((byte)(224)))), ((int)(((byte)(224)))));
-            this.Name = "Terminal";
-            this.Size = new System.Drawing.Size(935, 700);
-            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.Terminal_KeyDown);
-            this.MouseDown += new System.Windows.Forms.MouseEventHandler(this.Terminal_MouseDown);
-            this.MouseMove += new System.Windows.Forms.MouseEventHandler(this.Terminal_MouseMove);
-            this.MouseUp += new System.Windows.Forms.MouseEventHandler(this.Terminal_MouseUp);
-            this.PreviewKeyDown += new System.Windows.Forms.PreviewKeyDownEventHandler(this.Terminal_PreviewKeyDown);
-            this.ResumeLayout(false);
-
+            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleMode = AutoScaleMode.Font;
+            BackColor = Color.FromArgb(12, 12, 12);
+            ForeColor = Color.FromArgb(224, 224, 224);
+            Margin = new Padding(3, 2, 3, 2);
+            Name = "Terminal";
+            Size = new Size(818, 525);
+            KeyDown += Terminal_KeyDown;
+            MouseDown += Terminal_MouseDown;
+            MouseMove += Terminal_MouseMove;
+            MouseUp += Terminal_MouseUp;
+            PreviewKeyDown += Terminal_PreviewKeyDown;
+            ResumeLayout(false);
         }
 
         #endregion

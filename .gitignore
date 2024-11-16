@@ -2,3 +2,7 @@
 *.nupkg
 *.nuspec
 *.vsidx
+/WFTerminal/WFTerminal/obj
+/WFTerminal/.vs
+/WFTerminal/.vs/ProjectEvaluation
+/WFTerminal/WFTerminal/bin
