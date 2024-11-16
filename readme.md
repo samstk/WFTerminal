@@ -63,6 +63,7 @@ This way allows the terminal to act similar to Putty. Note that this doesn't hav
 and program's like VIM may break this terminal.
 
 ``` cs
+// Example with Renci.SSHNet
 Client = new SshClient(sshServer, sshUser, privateKeyFile);
 Client.Connect();
 ExtendedStream = new MemoryStream();
