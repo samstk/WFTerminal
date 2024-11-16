@@ -24,6 +24,8 @@ Add it to your form as normal or initialize it elsewhere.
 * RedirectStandardConsoleOut function to map System.Console output to the terminal
 * Minor Stream support (InputStream single line, OutputStream write to terminal)
 * ANSI colour support via WriteAnsi function
+* Limited support for other ANSI codes (1.1.0+)
+* Limited Support for System / Shell Streams (1.1.0+)
 
 ## Limitations
 * May not contain all the QoL improvements that certain window interfaces have.
